@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SmartPalm.AgronomyService.API/SmartPalm.AgronomyService.API.csproj" />
+  <Project Path="SmartPalm.AgronomyService.API.Tests/SmartPalm.AgronomyService.API.Tests.csproj" />
+</Solution>
+

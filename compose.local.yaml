@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: smartpalm_agronomy
+      POSTGRES_USER: smartpalm_agronomy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["${POSTGRES_PORT:-5438}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartpalm_agronomy -d smartpalm_agronomy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: ["agronomy-postgres:/var/lib/postgresql/data"]
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    profiles: ["isolated"]
+    ports: ["${RABBITMQ_PORT:-5672}:5672", "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"]
+  agronomy-api:
+    build: { context: . }
+    profiles: ["api"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AgronomyDatabase: Host=postgres;Port=5432;Database=smartpalm_agronomy;Username=smartpalm_agronomy;Password=${POSTGRES_PASSWORD}
+      Jwt__Issuer: smartpalm.identity
+      Jwt__Audience: smartpalm.clients
+      Jwt__Key: ${JWT_KEY}
+      RabbitMq__Enabled: "true"
+      RabbitMq__Uri: ${RABBITMQ_URI:-amqp://guest:guest@host.docker.internal:5672/}
+    ports: ["${AGRONOMY_API_PORT:-5106}:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+volumes: { agronomy-postgres: {} }
+

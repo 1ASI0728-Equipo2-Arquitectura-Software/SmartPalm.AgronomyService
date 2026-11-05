@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/TestResults
+.git
+.gitignore
+.env
+.idea
+.vs
+docs/assets
+
