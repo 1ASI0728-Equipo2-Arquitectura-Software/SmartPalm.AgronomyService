@@ -31,7 +31,7 @@ public sealed class AgronomyProjectionReconciliationService(
         }
         foreach (var snapshot in users)
         {
-            var activeSubscription = snapshot.SubscriptionStatus.Equals("Active", StringComparison.OrdinalIgnoreCase);
+            var activeSubscription = string.Equals(snapshot.SubscriptionStatus, "Active", StringComparison.OrdinalIgnoreCase);
             var existing = await db.Users.FindAsync([snapshot.UserId], token);
             if (existing is null)
             {

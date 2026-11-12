@@ -17,6 +17,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddAgronomyInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
         var connection = configuration.GetConnectionString("AgronomyDatabase") ?? throw new InvalidOperationException("ConnectionStrings:AgronomyDatabase is required.");
         services.AddDbContext<AgronomyDbContext>(o => o.UseNpgsql(connection).UseSnakeCaseNamingConvention()); services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
         services.AddScoped<IRecommendationRepository, RecommendationRepository>(); services.AddScoped<ITechnicalReportRepository, TechnicalReportRepository>();

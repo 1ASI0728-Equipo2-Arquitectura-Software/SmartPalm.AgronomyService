@@ -7,7 +7,10 @@ using SmartPalm.AgronomyService.Infrastructure.Configuration;
 
 namespace SmartPalm.AgronomyService.Infrastructure.ExternalServices;
 
-internal sealed class IdentitySnapshotClient(HttpClient http, IOptions<ReconciliationOptions> options) : IIdentitySnapshotClient
+internal sealed class IdentitySnapshotClient(
+    HttpClient http,
+    IOptions<ReconciliationOptions> options,
+    IHttpContextAccessor httpContextAccessor) : IIdentitySnapshotClient
 {
     private readonly ReconciliationOptions _options = options.Value;
 
@@ -32,14 +35,20 @@ internal sealed class IdentitySnapshotClient(HttpClient http, IOptions<Reconcili
 
     private void AddBearer(HttpRequestMessage request)
     {
-        if (!string.IsNullOrWhiteSpace(_options.InternalBearerToken))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.InternalBearerToken);
+        var authToken = !string.IsNullOrWhiteSpace(_options.InternalBearerToken)
+            ? _options.InternalBearerToken
+            : httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(authToken))
+            request.Headers.TryAddWithoutValidation("Authorization", authToken);
     }
 
     private sealed record IdentityUserListItem(long Id);
 }
 
-internal sealed class CropSnapshotClient(HttpClient http, IOptions<ReconciliationOptions> options) : ICropSnapshotClient
+internal sealed class CropSnapshotClient(
+    HttpClient http,
+    IOptions<ReconciliationOptions> options,
+    IHttpContextAccessor httpContextAccessor) : ICropSnapshotClient
 {
     private readonly ReconciliationOptions _options = options.Value;
 
@@ -65,8 +74,11 @@ internal sealed class CropSnapshotClient(HttpClient http, IOptions<Reconciliatio
     private async Task<T> GetAsync<T>(string path, CancellationToken token)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        if (!string.IsNullOrWhiteSpace(_options.InternalBearerToken))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.InternalBearerToken);
+        var authToken = !string.IsNullOrWhiteSpace(_options.InternalBearerToken)
+            ? _options.InternalBearerToken
+            : httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(authToken))
+            request.Headers.TryAddWithoutValidation("Authorization", authToken);
         using var response = await http.SendAsync(request, token);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<T>(cancellationToken: token)

@@ -1,6 +1,6 @@
 namespace SmartPalm.AgronomyService.Application.Reconciliation;
 
-public sealed record IdentityUserSnapshot(long UserId, string Role, string Status, string SubscriptionStatus);
+public sealed record IdentityUserSnapshot(long UserId, string Role, string Status, string? SubscriptionStatus);
 public sealed record CropPlantationSnapshot(long Id, long PalmGrowerId, string Name);
 public sealed record CropSectorSnapshot(long Id, long PlantationId, string Name);
 public sealed record CropAffiliationSnapshot(long Id, long AgronomistId, long PlantationId);
