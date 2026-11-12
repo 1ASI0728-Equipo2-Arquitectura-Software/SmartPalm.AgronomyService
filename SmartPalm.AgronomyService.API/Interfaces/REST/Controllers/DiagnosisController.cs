@@ -8,7 +8,10 @@ using SmartPalm.AgronomyService.Infrastructure.ExternalServices;
 namespace SmartPalm.AgronomyService.Api.Controllers;
 
 [ApiController, Authorize(Roles = "Administrator,Agronomist"), Route("api/v1/sectors/{sectorId:long}/recommendations/diagnosis")]
-public class DiagnosisController(AgronomyAuthorizationService authorization, IDiagnosisProvider provider) : ControllerBase
+public class DiagnosisController(
+    AgronomyAuthorizationService authorization,
+    IDiagnosisProvider provider,
+    ILogger<DiagnosisController> logger) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Analyze(long sectorId, [FromBody] DiagnosisRequest request, CancellationToken token)
@@ -21,8 +24,10 @@ public class DiagnosisController(AgronomyAuthorizationService authorization, IDi
             var diagnosis = await provider.GenerateAsync(summary, token);
             return Ok(new { summary, diagnosis });
         }
-        catch (DiagnosisProviderException)
+        catch (DiagnosisProviderException exception)
         {
+            logger.LogWarning("Diagnosis provider failure. Category={Category} SectorId={SectorId}",
+                exception.Category, sectorId);
             return StatusCode(StatusCodes.Status502BadGateway, new { message = "El servicio de diagnóstico no está disponible. Inténtalo más tarde." });
         }
     }
