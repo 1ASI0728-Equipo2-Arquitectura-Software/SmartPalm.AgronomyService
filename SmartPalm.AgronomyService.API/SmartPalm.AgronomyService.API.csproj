@@ -6,6 +6,9 @@
     <RootNamespace>SmartPalm.AgronomyService</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Skills/oil-palm-diagnosis/SKILL.md" LogicalName="SmartPalm.AgronomyService.Skills.oil-palm-diagnosis.SKILL.md" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />

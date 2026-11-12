@@ -7,6 +7,7 @@ using SmartPalm.AgronomyService.Application.QueryServices;
 using SmartPalm.AgronomyService.Domain.Repositories;
 using SmartPalm.AgronomyService.Domain.Services;
 using SmartPalm.AgronomyService.Infrastructure.Configuration;
+using SmartPalm.AgronomyService.Infrastructure.ExternalServices;
 using SmartPalm.AgronomyService.Infrastructure.Messaging;
 using SmartPalm.AgronomyService.Infrastructure.Persistence;
 
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IAgronomyProjectionRepository, AgronomyProjectionRepository>(); services.AddScoped<IUnitOfWork>(p => p.GetRequiredService<AgronomyDbContext>());
         services.AddScoped<IIntegrationEventWriter, IntegrationEventWriter>(); services.AddScoped<IInbox, Inbox>(); services.AddScoped<IntegrationEventHandlers>();
         services.AddScoped<AgronomyAuthorizationService>();
+        services.AddHttpClient<IDiagnosisProvider, MiniMaxDiagnosisProvider>(client => client.Timeout = TimeSpan.FromSeconds(60));
         services.AddScoped<IRecommendationCommandService, RecommendationCommandService>(); services.AddScoped<IRecommendationQueryService, RecommendationQueryService>();
         services.AddScoped<IReportCommandService, ReportCommandService>(); services.AddScoped<IReportQueryService, ReportQueryService>(); services.AddSingleton<AgronomyAccessPolicy>();
         services.AddHostedService<IntegrationEventConsumer>(); services.AddHostedService<OutboxPublisher>(); return services;
