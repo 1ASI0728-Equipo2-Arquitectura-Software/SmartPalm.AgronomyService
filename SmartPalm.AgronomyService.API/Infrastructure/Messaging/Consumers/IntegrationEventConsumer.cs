@@ -65,7 +65,7 @@ internal class IntegrationEventConsumer(IServiceScopeFactory scopes, IOptions<Ra
         };
         await channel.BasicConsumeAsync(_options.Queue, false, consumer, token); await Task.Delay(Timeout.InfiniteTimeSpan, token);
     }
-    private static T Read<T>(byte[] body) => JsonSerializer.Deserialize<T>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new JsonException($"Invalid {typeof(T).Name} payload.");
+    private static T Read<T>(byte[] body) => ReadPayload<T>(body);
 
     private static T ReadPayload<T>(byte[] body)
     {
