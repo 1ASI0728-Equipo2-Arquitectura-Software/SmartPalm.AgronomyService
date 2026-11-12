@@ -6,6 +6,11 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using SmartPalm.AgronomyService.Application.Ports;
+using SmartPalm.AgronomyService.Domain.Services;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using RabbitMQ.Client;
@@ -29,7 +34,7 @@ public class AgronomyApiContainerTests : IAsyncLifetime
         await using var connection = await new ConnectionFactory { Uri = new Uri(_rabbit.GetConnectionString()) }.CreateConnectionAsync();
         await using var channel = await connection.CreateChannelAsync(); await channel.ExchangeDeclareAsync("smartpalm.events", ExchangeType.Topic, true, false);
         var userMessage = Guid.NewGuid();
-        await PublishUntilAsync(channel, "smartpalm.identity.user-created.v1", userMessage, new { userId = 7, username = "agronomist", email = "a@test.local", fullName = "Test Agronomist", role = "Agronomist", occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.user_projections", 1);
+        await PublishUntilAsync(channel, "smartpalm.identity.user-created.v1", userMessage, new { eventType = "smartpalm.identity.user-created.v1", payload = new { userId = 7, username = "agronomist", email = "a@test.local", fullName = "Test Agronomist", role = "Agronomist", occurredAtUtc = DateTime.UtcNow } }, "SELECT COUNT(*) FROM agronomy.user_projections", 1);
         await PublishUntilAsync(channel, "smartpalm.identity.user-created.v1", userMessage, new { userId = 7, username = "agronomist", email = "a@test.local", fullName = "Test Agronomist", role = "Agronomist", occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.inbox_messages", 1);
         await PublishUntilAsync(channel, "smartpalm.identity.subscription-activated.v1", Guid.NewGuid(), new { subscriptionId = 2, userId = 7, planType = "Premium", startDate = DateTime.UtcNow, endDate = DateTime.UtcNow.AddMonths(1), occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.user_projections WHERE has_active_subscription", 1);
         await PublishUntilAsync(channel, "crop.plantation-created.v1", Guid.NewGuid(), new { plantationId = 20L, palmGrowerId = 3L, name = "Palm Estate", hectares = 12m, occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.plantation_projections", 1);
@@ -52,6 +57,41 @@ public class AgronomyApiContainerTests : IAsyncLifetime
     [DockerRequiredFact, Trait("Category", "Integration")]
     public async Task Recommendations_WithoutJwt_ReturnUnauthorized()
     { using var factory = CreateFactory(); using var client = factory.CreateClient(); Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/recommendations/general")).StatusCode); }
+
+    [DockerRequiredFact, Trait("Category", "Integration")]
+    public async Task Diagnosis_RequiresAnAuthorizedAgronomistAndSummarizesReadings()
+    {
+        using var factory = CreateFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IDiagnosisProvider>();
+            services.AddSingleton<IDiagnosisProvider, FakeDiagnosisProvider>();
+        }));
+        using var client = factory.CreateClient();
+        var from = DateTimeOffset.UtcNow.AddHours(-2);
+        var payload = new { from, to = from.AddHours(1), readings = new[] { new { variable = "temperature", value = 27.0, unit = "C", measuredAt = from.AddMinutes(10) } } };
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/v1/sectors/30/recommendations/diagnosis", Json(payload))).StatusCode);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken(7, "PalmGrower"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/v1/sectors/30/recommendations/diagnosis", Json(payload))).StatusCode);
+        await using var connection = await new ConnectionFactory { Uri = new Uri(_rabbit.GetConnectionString()) }.CreateConnectionAsync();
+        await using var channel = await connection.CreateChannelAsync(); await channel.ExchangeDeclareAsync("smartpalm.events", ExchangeType.Topic, true, false);
+        await PublishUntilAsync(channel, "smartpalm.identity.user-created.v1", Guid.NewGuid(), new { userId = 7, role = "Agronomist", occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.user_projections", 1);
+        await PublishUntilAsync(channel, "smartpalm.identity.subscription-activated.v1", Guid.NewGuid(), new { userId = 7, occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.user_projections WHERE has_active_subscription", 1);
+        await PublishUntilAsync(channel, "crop.plantation-created.v1", Guid.NewGuid(), new { plantationId = 20L, palmGrowerId = 3L, name = "Palm Estate", occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.plantation_projections", 1);
+        await PublishUntilAsync(channel, "crop.sector-assigned.v1", Guid.NewGuid(), new { sectorId = 30L, plantationId = 20L, name = "North", occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.sector_projections", 1);
+        await PublishUntilAsync(channel, "crop.agronomist-affiliated.v1", Guid.NewGuid(), new { affiliationId = 40L, agronomistId = 7L, plantationId = 20L, occurredAtUtc = DateTime.UtcNow }, "SELECT COUNT(*) FROM agronomy.agronomist_affiliation_projections WHERE active", 1);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken(7, "Agronomist"));
+        var response = await client.PostAsync("/api/v1/sectors/30/recommendations/diagnosis", Json(payload));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Test diagnosis", body.RootElement.GetProperty("diagnosis").GetString());
+        Assert.Equal(27, body.RootElement.GetProperty("summary").GetProperty("metrics")[0].GetProperty("average").GetDouble());
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/sectors/30/recommendations/diagnosis", Json(new { from, to = from.AddHours(1), readings = Array.Empty<object>() }))).StatusCode);
+    }
+
+    private sealed class FakeDiagnosisProvider : IDiagnosisProvider
+    {
+        public Task<string> GenerateAsync(DiagnosisSummary summary, CancellationToken cancellationToken) => Task.FromResult("Test diagnosis");
+    }
 
     private WebApplicationFactory<Program> CreateFactory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {

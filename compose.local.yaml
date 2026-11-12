@@ -26,6 +26,8 @@ services:
       Jwt__Issuer: smartpalm.identity
       Jwt__Audience: smartpalm.clients
       Jwt__Key: ${JWT_KEY}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3.1-Flash}
       RabbitMq__Enabled: "true"
       RabbitMq__Uri: ${RABBITMQ_URI:-amqp://guest:guest@host.docker.internal:5672/}
     ports: ["${AGRONOMY_API_PORT:-5106}:8080"]
