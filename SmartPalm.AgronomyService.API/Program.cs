@@ -7,6 +7,8 @@ using SmartPalm.AgronomyService.Infrastructure;
 using SmartPalm.AgronomyService.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+if (!builder.Environment.IsEnvironment("Testing"))
+    SmartPalm.AgronomyService.Infrastructure.Configuration.DeploymentConfiguration.Validate(builder.Configuration);
 builder.Services.AddControllers(); builder.Services.AddEndpointsApiExplorer(); builder.Services.AddSwaggerGen(options =>
 {
     options.EnableAnnotations();
