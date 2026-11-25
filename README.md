@@ -33,7 +33,9 @@ Copia `.env.example` como `.env` y luego ejecuta:
 docker compose -f compose.local.yaml --env-file .env --profile isolated --profile api up --build
 ```
 
-La API escucha en `http://localhost:5106` y expone su disponibilidad en `/health/ready`. Omite el perfil `isolated` cuando utilices la instancia compartida de RabbitMQ.
+La API escucha en `http://localhost:5106` y expone su disponibilidad en `/health/live` y `/health/ready`. Omite el perfil `isolated` cuando utilices la instancia compartida de RabbitMQ.
+
+Para Coolify/Vultr, usa `compose.coolify.yaml` como referencia y configura todas las variables mediante secretos de ejecución. Consulta `DEPLOYMENT.md`.
 
 ## Diagnóstico asistido de palma aceitera
 

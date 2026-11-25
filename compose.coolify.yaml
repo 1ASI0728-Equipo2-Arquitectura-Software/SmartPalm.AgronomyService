@@ -1,0 +1,27 @@
+services:
+  agronomy-api:
+    build:
+      context: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AgronomyDatabase: ${ConnectionStrings__AgronomyDatabase:?Set ConnectionStrings__AgronomyDatabase}
+      Jwt__Issuer: ${Jwt__Issuer:-smartpalm.identity}
+      Jwt__Audience: ${Jwt__Audience:-smartpalm.clients}
+      Jwt__Key: ${Jwt__Key:?Set Jwt__Key}
+      RabbitMq__Enabled: ${RabbitMq__Enabled:-true}
+      RabbitMq__Uri: ${RabbitMq__Uri:?Set RabbitMq__Uri}
+      RabbitMq__Exchange: ${RabbitMq__Exchange:-smartpalm.events}
+      Reconciliation__IdentityBaseUrl: ${Reconciliation__IdentityBaseUrl:?Set Reconciliation__IdentityBaseUrl}
+      Reconciliation__CropBaseUrl: ${Reconciliation__CropBaseUrl:?Set Reconciliation__CropBaseUrl}
+      Reconciliation__InternalBearerToken: ${Reconciliation__InternalBearerToken:-}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:?Set MINIMAX_API_KEY}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M3.1-Flash}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s

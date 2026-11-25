@@ -6,6 +6,7 @@ obj/
 TestResults/
 docs/
 .junie/
+DEPLOYMENT.md
 
 # Configuración local de ASP.NET Core
 **/appsettings.Development.json
